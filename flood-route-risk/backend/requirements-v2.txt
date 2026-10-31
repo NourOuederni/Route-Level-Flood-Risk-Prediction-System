@@ -1,0 +1,6 @@
+# V2 additional dependencies (install on top of requirements.txt + requirements-pipeline.txt)
+psycopg2-binary>=2.9
+geoalchemy2>=0.14
+python-igraph>=0.11
+alembic>=1.13
+sqlalchemy[asyncio]>=2.0

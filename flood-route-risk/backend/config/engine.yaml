@@ -1,0 +1,103 @@
+# Flood Route Risk - Version 1 engine configuration
+# --------------------------------------------------
+# Every number in this file is a PLACEHOLDER for calibration (guide Section 7).
+# This file is under Git: the Git history is the change log required by FR-24.
+# Bump `version` whenever you change a value so prediction logs stay traceable.
+
+version: "v1.0-placeholder"
+
+# Static susceptibility S = sum(w_i * f_i), f_i in [0,1] (percentile ranks, pipeline step 07)
+susceptibility:
+  s_min: 0.2                # floor: S' = s_min + (1 - s_min) * S
+  weights:                  # must sum to 1.0 (checked at load time)
+    depression: 0.22        # f1 deep local depression / high wetness index
+    drainage_position: 0.20 # f2 low HAND / close to wadi
+    low_slope: 0.12         # f3 flat ground
+    impervious: 0.14        # f4 built-up share
+    crossing: 0.12          # f5 underpass / ford / low wadi crossing
+    past_flood: 0.20        # f6 confirmed past flood or black spot nearby
+
+# Effective rainfall R_eff = I_W + kappa * A_6h
+rainfall:
+  kappa_per_h: 0.1
+  antecedent_hours: 6
+  window:                   # ETA +/- max(min_minutes, fraction_of_elapsed * elapsed trip time)
+    min_minutes: 15
+    fraction_of_elapsed: 0.15
+  hazard_when_unknown: 0.4  # degraded mode, no rainfall at all: shows terrain susceptibility only, capped below High
+
+# Drainage vulnerability DV = sum(w * proxy)
+drainage:
+  weights:
+    urban: 0.30             # U  impervious / urban density
+    blackspot: 0.30         # B  recurrence of black spots
+    dry_spell: 0.30         # D(t) days since last rain, scaled and capped
+    drain_density_inv: 0.10 # K  inverted mapped-drain density (weak signal in Tunisia)
+    maintenance: 0.0        # M  authority maintenance data (FR-10); give it weight once data arrive
+  dry_spell:
+    rain_day_mm: 1.0        # a day with at least this much rain resets the dry-spell counter
+    cap_days: 50
+    default_factor: 0.5     # used when the dry-spell history is unknown
+
+# Effective threshold T_eff = T0 * (1 - beta * DV), H = min(1, R_eff / T_eff)
+threshold:
+  t0_mm_h: 20.0
+  beta: 0.5
+  beta_max: 0.6
+
+# Score levels (0-100)
+levels:
+  moderate: 25
+  high: 50
+  very_high: 75
+
+# Confidence = 1 - penalties + bonuses, clipped to [0,1]
+confidence:
+  interpolated_rain: 0.15
+  model_spread_max: 0.25     # scaled by (max - min) / T_eff across models
+  stale: 0.20                # data older than its refresh interval
+  very_stale: 0.40           # data older than 3x the refresh interval
+  poorly_mapped: 0.15
+  unknown_drain_state_max: 0.15  # scaled by DV when no authority data
+  dry_spell_unknown: 0.05
+  no_rain_data: 0.60         # degraded mode
+  past_flood_bonus: 0.10
+  feedback_bonus: 0.10
+  labels:
+    high: 0.7
+    medium: 0.4
+
+# Routing (FR-16..FR-19)
+routing:
+  max_candidates: 3
+  candidate_overlap_max: 0.75     # alternatives must share < 75% of length with accepted ones
+  candidate_duration_factor: 1.5  # and take at most 1.5x the fastest
+  candidate_penalty: 1.4          # travel-time multiplier on used edges when searching alternatives
+  risk_penalty:                   # cost = travel_time * (1 + penalty[level])
+    low: 0.0
+    moderate: 0.25
+    high: 1.5
+  exclude_levels: [very_high]
+  corridor_factor: 2.5            # score edges reachable within factor * fastest duration
+  max_snap_distance_m: 1500
+
+# Weather source
+weather:
+  provider: open_meteo
+  url: https://api.open-meteo.com/v1/forecast
+  models: [ecmwf_ifs025, icon_global, gfs_global]   # verify names in the Open-Meteo docs
+  grid_step_deg: 0.1
+  past_days: 2
+  forecast_days: 2
+  dry_spell_past_days: 60
+  check_interval_minutes: 15      # NFR-02: check at least every 15 min
+  fetch_interval_minutes: 60      # models update every few hours; do not poll faster than useful
+  refresh_interval_minutes: 180   # data older than this counts as stale for confidence
+  timeout_s: 20
+
+alerts:
+  default_level: high
+
+disclaimer: >-
+  Flood risk scores express a possibility, not a certainty, and never a water depth.
+  Always follow official warnings and civil protection instructions. Never drive into flooded roads.

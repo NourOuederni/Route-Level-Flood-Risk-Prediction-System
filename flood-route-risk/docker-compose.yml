@@ -1,0 +1,26 @@
+# V2 infrastructure: PostGIS for national-scale segment storage.
+# Start:  docker compose up -d
+# Stop:   docker compose down
+# Reset:  docker compose down -v   (deletes all data)
+version: "3.9"
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: flood-postgis
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: floodrisk
+      POSTGRES_USER: flood
+      POSTGRES_PASSWORD: flood_dev_2024
+    ports:
+      - "5433:5432"             # 5433 to avoid conflicts with a local Postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flood -d floodrisk"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgdata:

@@ -1,0 +1,7 @@
+-r requirements.txt
+# offline data pipeline (GDAL wheels come with rasterio)
+osmnx>=2.0
+rasterio>=1.4
+rasterstats>=0.20
+pysheds>=0.4
+pyproj>=3.6

@@ -1,0 +1,11 @@
+# Pilot areas: bbox = [west, south, east, north] in WGS84.
+# Nabeul is the default (best validation data: Copernicus EMS EMSR319, September 2018).
+nabeul:
+  name: Nabeul
+  bbox: [10.67, 36.41, 10.79, 36.50]
+greater_tunis:
+  name: Greater Tunis
+  bbox: [10.05, 36.70, 10.35, 36.92]
+tunisia:
+  name: Tunisia
+  bbox: [7.5, 30.2, 11.6, 37.5]
