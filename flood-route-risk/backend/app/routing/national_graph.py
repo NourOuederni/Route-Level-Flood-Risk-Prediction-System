@@ -62,6 +62,8 @@ class NationalGraph:
         """KDTree over graph vertices for fast nearest-node snapping."""
         lats = self.graph.vs["lat"]
         lons = self.graph.vs["lon"]
+        pad = 0.01  # ~1 km of slack around the outermost vertices
+        self._coverage = [min(lons) - pad, min(lats) - pad, max(lons) + pad, max(lats) + pad]
         # Approximate metric coords for distance computation
         self._lat0 = np.mean(lats)
         self._kx = 111_320 * math.cos(math.radians(self._lat0))
@@ -70,17 +72,40 @@ class NationalGraph:
         self._tree = cKDTree(xy)
 
     @property
-    def centre(self) -> tuple[float, float]:
-        return (33.8, 9.5)    # Tunisia centre
+    def bbox(self) -> list[float]:
+        """Area covered by the loaded road network (not the whole country)."""
+        return self._coverage
 
     @property
-    def bbox(self) -> list[float]:
-        return [7.5, 30.2, 11.6, 37.5]
+    def centre(self) -> tuple[float, float]:
+        w, s, e, n = self.bbox
+        return ((s + n) / 2, (w + e) / 2)
 
     def nearest_node(self, lat: float, lon: float) -> tuple[int, float]:
         """Find nearest graph vertex. Returns (vertex_index, distance_metres)."""
         dist, idx = self._tree.query([lon * self._kx, lat * self._ky])
         return int(idx), float(dist)
+
+    def covers(self, lat: float, lon: float) -> bool:
+        """True if the point lies inside the area with loaded road data."""
+        w, s, e, n = self.bbox
+        return w <= lon <= e and s <= lat <= n
+
+    def nearest_road(self, lat: float, lon: float) -> tuple[str | None, float] | None:
+        """Nearest mapped road segment in PostGIS: (name, distance_metres)."""
+        sql = text("""
+            SELECT name,
+                   ST_Distance(geom::geography,
+                               ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography) AS d
+            FROM segment
+            ORDER BY geom <-> ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)
+            LIMIT 1
+        """)
+        with self._engine.connect() as conn:
+            row = conn.execute(sql, {"lon": lon, "lat": lat}).first()
+        if row is None:
+            return None
+        return row[0], float(row[1])
 
     def in_bbox(self, lat: float, lon: float, margin: float = 0.1) -> bool:
         w, s, e, n = self.bbox

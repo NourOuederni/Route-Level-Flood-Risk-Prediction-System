@@ -1,0 +1,19 @@
+{
+  "packages": [
+{
+  "SPDXID" : "SPDXRef-resource-0",
+  "checksums" : 
+  [
+    {
+      "algorithm" : "SHA512",
+      "checksumValue" : "a16036d4bb4c96bad75830be9a882329a7968621e24a3e28fae1908c2b2ea8e5779df98beaf2ad045f2671cb2688f6592450f9546903662c08cbf5c606a7ceaf"
+    }
+  ],
+  "copyrightText" : "NOASSERTION",
+  "downloadLocation" : "git+https://github.com/OSGeo/gdal@v3.12.2",
+  "licenseConcluded" : "NOASSERTION",
+  "licenseDeclared" : "NOASSERTION",
+  "name" : "OSGeo/gdal"
+}
+  ]
+}

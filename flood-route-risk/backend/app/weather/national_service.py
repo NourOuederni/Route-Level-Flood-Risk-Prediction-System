@@ -47,7 +47,8 @@ class NationalWeatherService:
     def __init__(self, wcfg: dict, raw_dir: Path, rain_day_mm: float = 1.0,
                  mode: str = "live", recorder=None):
         self.cells = build_national_grid()
-        self.centre = (33.8, 9.5)     # Tunisia centre
+        # Scenario storms are centred on the pilot zone (Nabeul), where the terrain model runs
+        self.centre = (36.455, 10.73)
         self.wcfg = wcfg
         self.raw_dir = raw_dir
         self.rain_day_mm = rain_day_mm

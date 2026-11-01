@@ -60,20 +60,55 @@ class RiskScorer:
         return risk
 
 
+class ZoneRiskScorer(RiskScorer):
+    """Terrain model inside the pilot zone, algorithmic engine everywhere else."""
+
+    def __init__(self, graph: NationalGraph, weather, cfg: EngineConfig, now: datetime,
+                 feedback: dict[int, str] | None, zone, trigger_on: bool):
+        super().__init__(graph, weather, cfg, now, feedback)
+        self.zone, self.trigger_on = zone, trigger_on
+
+    def score(self, rec: SegmentRecord, eta: datetime, elapsed_s: float) -> SegmentRisk:
+        idx = self.zone.lookup(rec.mid[0], rec.mid[1])
+        if idx is None:
+            return super().score(rec, eta, elapsed_s)
+        return self.zone.risk(idx, rec.static.segment_id, self.trigger_on)
+
+
 class PlannerV2:
     """National-scale planner using igraph for routing."""
 
-    def __init__(self, graph: NationalGraph, weather, cfg: EngineConfig):
+    def __init__(self, graph: NationalGraph, weather, cfg: EngineConfig, zone=None):
         self.graph, self.weather, self.cfg = graph, weather, cfg
         self.rcfg = cfg.section("routing")
+        self.zone = zone          # ZoneModel or None
+
+    def make_scorer(self, now: datetime, feedback: dict[int, str] | None = None):
+        """Returns (scorer, trigger status). The trigger is None when no zone model is loaded."""
+        if self.zone is None:
+            return RiskScorer(self.graph, self.weather, self.cfg, now, feedback), None
+        trigger = self.zone.trigger(self.weather.store, now)
+        scorer = ZoneRiskScorer(self.graph, self.weather, self.cfg, now, feedback,
+                                self.zone, trigger["status"] == "on")
+        return scorer, trigger
 
     def _snap(self, lat: float, lon: float, what: str) -> int:
-        if not self.graph.in_bbox(lat, lon):
-            raise PlanningError(f"{what} is outside Tunisia")
+        if not self.graph.covers(lat, lon):
+            w, s, e, n = self.graph.bbox
+            raise PlanningError(
+                f"{what} is outside the mapped area. Road data is currently loaded for "
+                f"{s:.2f}–{n:.2f}°N, {w:.2f}–{e:.2f}°E.")
         node, dist = self.graph.nearest_node(lat, lon)
         max_dist = float(self.rcfg["max_snap_distance_m"])
         if dist > max_dist:
-            raise PlanningError(f"{what} is too far from any mapped road ({dist:.0f} m)")
+            near = self.graph.nearest_road(lat, lon)
+            if near is not None:
+                name, road_m = near
+                label = f'"{name}"' if name else "an unnamed road"
+                raise PlanningError(
+                    f"{what} is {road_m / 1000:.1f} km from the nearest mapped road ({label}). "
+                    f"Pick a point within {max_dist / 1000:.1f} km of a road.")
+            raise PlanningError(f"{what} is too far from any mapped road.")
         return node
 
     def _path_stats(self, path: list[int]) -> tuple[float, float]:
@@ -166,7 +201,7 @@ class PlannerV2:
         if o == d:
             raise PlanningError("origin and destination are the same place")
 
-        scorer = RiskScorer(self.graph, self.weather, self.cfg, now, feedback)
+        scorer, trigger = self.make_scorer(now, feedback)
 
         # Candidate paths via penalty method
         paths = self.graph.k_shortest_paths(
@@ -234,6 +269,7 @@ class PlannerV2:
             "fallback": fallback,
             "engine_version": self.cfg.version,
             "disclaimer": self.cfg.raw["disclaimer"],
+            "trigger": trigger,
         }
         return result, log_rows
 
@@ -270,7 +306,7 @@ class PlannerV2:
         first_alert = next((s for s in segs if s.risk.segment_id in alert_ids), None)
 
         return {
-            "id": uuid.uuid5(uuid.NAMESPACE_OID, "-".join(map(str, path[:10]))).hex[:12],
+            "id": uuid.uuid5(uuid.NAMESPACE_OID, "-".join(map(str, path))).hex[:12],
             "kind": kind,
             "duration_s": round(tt),
             "distance_m": round(ln),

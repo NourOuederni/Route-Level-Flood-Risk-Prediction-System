@@ -1,0 +1,35 @@
+{
+  "column": "trigger_rain_24h_mm",
+  "threshold_mm": 44.0,
+  "status": "provisional",
+  "definition": "rain accumulated from t - 12 h to t + 12 h (12 h already fallen + 12 h forecast), where t is the prediction time, at the wettest 0.1 degree cell of the zone (predict.py takes the max of the column over the zone's segments)",
+  "source_used_for_fit": "NASA GPM IMERG Final daily (gauge-corrected)",
+  "validation": {
+    "method": "leave-one-event-out over 13 Copernicus EMS flash floods (28 zones); threshold = highest value catching 90 % of the other events' flood zones",
+    "flood_zones_caught": "25/28 (missed: western Attica 2019 x2 at 28-30 mm, one Sicily 2021 zone at 43.9 mm)",
+    "dry_spells_triggered": "5/126 wet spells without a Copernicus activation in the 120 days before each flood; at least one (Heraklion, 20 Oct 2020) is a documented but unmapped flood",
+    "false_triggers_per_zone_per_year": 0.65,
+    "tunisian_gauges_exploratory": {
+      "status": "exploratory; not an operational validation; threshold not refitted",
+      "data": "8 INM synoptic gauges (WMO SYNOP via NOAA ISD), 2014-09-01 to 2025-08-31, rebuilt on a 3-hour grid partly from 6-24 h totals; floods from press reports",
+      "floods_caught_zone_dates": "7/14 = 50 % (Wilson 95 %: 27-73 %), excluding the fitted event (Cap Bon 2018-09-22)",
+      "floods_caught_event_station": "6/11 = 54.5 % (Wilson 95 %: 28-79 %); zones sharing a gauge on the same day count once",
+      "resolution_of_the_11_events": "high 3/4 caught, approximate 2/3, insufficient 1/4",
+      "triggers_without_listed_flood": "135 zone-episodes; 74 station-episodes; 50 groups of time-overlapping station-episodes (not confirmed storms)",
+      "manual_review_of_25_flagged_station_episodes": "12 possible unlisted floods, 7 unreliable rain data, 6 unresolved, 0 confirmed false alarms; review categories, not ground truth; no rain value changed",
+      "report": "reports/tn_trigger_synop/README.md"
+    },
+    "tunisian_imerg_exploratory": {
+      "floods_caught_zone_dates": "5/14 with IMERG Final rain on the same floods",
+      "report": "reports/tn_trigger_imerg/README.md"
+    }
+  },
+  "limits": [
+    "13 events only, one Tunisian",
+    "fitted on IMERG Final; IMERG Early, radar or INM gauges give different values: re-check on Tunisian gauge records before production",
+    "dry spells are 'no mapped flood', not 'no flood'",
+    "Tunisian checks: incomplete press-based flood list, few gauges (1-20 km from each zone), rain partly reconstructed from 6-24 h totals, manual review decisions",
+    "gauge and IMERG differ in both directions (gauge 3-4x higher on intense urban storms): an IMERG-fitted threshold cannot be rescaled for gauges"
+  ],
+  "calibration_window": "calendar days 00-24 UTC (IMERG Final daily). A calendar day is one of the 24 h windows, so the operational rolling window is always >= it. Measured on the 28 flood storms (reports/med_trigger/window_check.csv): median x1.03, up to x1.7 when a storm straddles midnight; flood zones reaching 44 mm go from 24 to 27/28. False triggers will rise too, by an amount the daily data cannot measure: check on Tunisian gauge records before production."
+}

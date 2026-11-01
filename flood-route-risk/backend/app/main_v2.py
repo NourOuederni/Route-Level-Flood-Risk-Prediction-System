@@ -48,8 +48,24 @@ class State:
 
 S = State()
 
+TUNISIA_BBOX = [7.5, 30.2, 11.6, 37.5]
 DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).resolve().parents[1] / "data"))
 GRAPH_PATH = DATA_DIR / "processed" / "national" / "graph.pickle"
+
+
+MODEL_DIR = Path(__file__).resolve().parents[1] / "models" / "final"
+
+
+def load_zone(cells):
+    """Pilot-zone terrain model and rain trigger. Returns None when the files are missing."""
+    zone_csv = DATA_DIR / "zones" / "nabeul.csv"
+    model = MODEL_DIR / "v2_terrain.joblib"
+    trigger = MODEL_DIR / "trigger.json"
+    if not (zone_csv.is_file() and model.is_file() and trigger.is_file()):
+        log.warning("zone model not loaded: need %s, %s and %s", zone_csv, model, trigger)
+        return None
+    from .routing.zone_model import ZoneModel
+    return ZoneModel(zone_csv, model, trigger, cells)
 
 
 @asynccontextmanager
@@ -74,7 +90,7 @@ async def lifespan(app: FastAPI):
         wcfg, raw_weather_dir,
         rain_day_mm=float(S.cfg.section("drainage")["dry_spell"]["rain_day_mm"]),
         mode=weather_mode)
-    S.planner = PlannerV2(S.graph, S.weather, S.cfg)
+    S.planner = PlannerV2(S.graph, S.weather, S.cfg, zone=load_zone(S.weather.cells))
     S.weather.start()
 
     log.info("V2 national API ready: %d vertices, %d edges, %d weather cells, mode %s",
@@ -217,7 +233,7 @@ def hotspots(
         # Full scan is expensive at national scale — encourage viewport queries
         recs = S.graph.segments_in_bbox(*S.graph.bbox, limit=limit * 5)
 
-    scorer = RiskScorer(S.graph, S.weather, S.cfg, now)
+    scorer, _ = S.planner.make_scorer(now)
     items = []
     for rec in recs:
         r = scorer.score(rec, now, 0.0)
@@ -260,7 +276,7 @@ def geocode(q: str = Query(min_length=2, max_length=120)):
     key = q.strip().lower()
     if key in S.geocode_cache:
         return {"items": S.geocode_cache[key]}
-    w, s, e, n = S.graph.bbox
+    w, s, e, n = TUNISIA_BBOX    # search the whole country; routing checks coverage separately
     try:
         r = httpx.get(S.nominatim_url, timeout=8,
                       headers={"User-Agent": S.user_agent},
