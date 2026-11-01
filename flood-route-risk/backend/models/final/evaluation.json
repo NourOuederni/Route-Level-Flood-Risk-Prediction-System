@@ -1,0 +1,225 @@
+{
+ "window": "rolling 24 h (12 h observed + 12 h forecast), same definition as the live trigger",
+ "operational_threshold_mm": 44.0,
+ "status": "exploratory on Tunisian data; threshold not refitted",
+ "tunisian_gauges_inm": {
+  "label": "INM synoptic gauges",
+  "thresholds": [
+   30.0,
+   35.0,
+   40.0,
+   44.0,
+   50.0,
+   55.0,
+   60.0,
+   70.0
+  ],
+  "flood_spells_caught": [
+   "13/16",
+   "11/16",
+   "9/16",
+   "9/16",
+   "9/16",
+   "8/16",
+   "7/16",
+   "5/16"
+  ],
+  "complete_flood_spells_caught": [
+   "11/12",
+   "9/12",
+   "7/12",
+   "7/12",
+   "7/12",
+   "7/12",
+   "6/12",
+   "5/12"
+  ],
+  "recall_complete": [
+   0.9167,
+   0.75,
+   0.5833,
+   0.5833,
+   0.5833,
+   0.5833,
+   0.5,
+   0.4167
+  ],
+  "recall_complete_low": [
+   0.6461,
+   0.4677,
+   0.3195,
+   0.3195,
+   0.3195,
+   0.3195,
+   0.2538,
+   0.1933
+  ],
+  "recall_complete_high": [
+   0.9851,
+   0.9111,
+   0.8067,
+   0.8067,
+   0.8067,
+   0.8067,
+   0.7462,
+   0.6805
+  ],
+  "false_triggers_per_zone_year": [
+   2.2771,
+   1.6377,
+   1.1853,
+   1.0528,
+   0.8344,
+   0.7174,
+   0.6551,
+   0.5069
+  ],
+  "false_low": [
+   2.0234,
+   1.4236,
+   1.0044,
+   0.8827,
+   0.6838,
+   0.5784,
+   0.5225,
+   0.3912
+  ],
+  "false_high": [
+   2.5538,
+   1.8748,
+   1.3895,
+   1.2461,
+   1.0083,
+   0.8799,
+   0.811,
+   0.6461
+  ],
+  "spells_triggered_without_flood": [
+   "292/2119",
+   "210/2119",
+   "152/2119",
+   "135/2119",
+   "107/2119",
+   "92/2119",
+   "84/2119",
+   "65/2119"
+  ]
+ },
+ "tunisian_imerg": {
+  "label": "IMERG Final (satellite)",
+  "thresholds": [
+   30.0,
+   35.0,
+   40.0,
+   44.0,
+   50.0,
+   55.0,
+   60.0,
+   70.0
+  ],
+  "flood_spells_caught": [
+   "10/17",
+   "10/17",
+   "8/17",
+   "8/17",
+   "7/17",
+   "6/17",
+   "5/17",
+   "3/17"
+  ],
+  "complete_flood_spells_caught": [
+   "10/17",
+   "10/17",
+   "8/17",
+   "8/17",
+   "7/17",
+   "6/17",
+   "5/17",
+   "3/17"
+  ],
+  "recall_complete": [
+   0.5882,
+   0.5882,
+   0.4706,
+   0.4706,
+   0.4118,
+   0.3529,
+   0.2941,
+   0.1765
+  ],
+  "recall_complete_low": [
+   0.3601,
+   0.3601,
+   0.2617,
+   0.2617,
+   0.2161,
+   0.1731,
+   0.1328,
+   0.0619
+  ],
+  "recall_complete_high": [
+   0.7839,
+   0.7839,
+   0.6904,
+   0.6904,
+   0.6399,
+   0.587,
+   0.5313,
+   0.4103
+  ],
+  "false_triggers_per_zone_year": [
+   2.5323,
+   1.8116,
+   1.2662,
+   0.9285,
+   0.5649,
+   0.461,
+   0.3441,
+   0.1688
+  ],
+  "false_low": [
+   2.2872,
+   1.6052,
+   1.0947,
+   0.7826,
+   0.4525,
+   0.3601,
+   0.2578,
+   0.1103
+  ],
+  "false_high": [
+   2.7965,
+   2.0371,
+   1.4569,
+   1.0938,
+   0.6968,
+   0.5815,
+   0.4501,
+   0.2474
+  ],
+  "spells_triggered_without_flood": [
+   "390/3369",
+   "279/3369",
+   "195/3369",
+   "143/3369",
+   "87/3369",
+   "71/3369",
+   "53/3369",
+   "26/3369"
+  ]
+ },
+ "mediterranean_leave_one_event_out": {
+  "label": "Mediterranean Copernicus EMS floods (fit data)",
+  "flood_zones": 28,
+  "flood_zones_caught": 25,
+  "events": 13,
+  "dry_spells": 126,
+  "dry_spells_triggered": 5,
+  "note": "threshold chosen by leave-one-event-out at 44 mm; missed: western Attica 2019 x2, one Sicily 2021 zone"
+ },
+ "notes": [
+  "Recall is shown as flood spells caught out of all Tunisian flood spells; 'complete' counts only spells with full data.",
+  "False triggers per zone per year come from spells with no listed flood (press reports only).",
+  "Shaded bands are Wilson 95 % intervals. Few events: the bands are wide."
+ ]
+}

@@ -10,6 +10,7 @@ Requires:
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import time
@@ -18,9 +19,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+from . import accounts, admin_api, alerts
 from .api.schemas import FeedbackRequest, RouteRequest, WeatherModeRequest
 from .db.config import get_db_url, ensure_tables
 from .engine import default_config
@@ -44,6 +46,8 @@ class State:
     admin_token: str = os.environ.get("ADMIN_TOKEN", "dev-admin-2024")
     nominatim_url: str = "https://nominatim.openstreetmap.org/search"
     user_agent: str = "FloodRouteRisk/2.0 (dev)"
+    routes_served: int = 0
+    monitor_task = None
 
 
 S = State()
@@ -93,15 +97,24 @@ async def lifespan(app: FastAPI):
     S.planner = PlannerV2(S.graph, S.weather, S.cfg, zone=load_zone(S.weather.cells))
     S.weather.start()
 
+    accounts.init_accounts(db_url)
+    monitor = alerts.AlertMonitor(lambda: S.planner.zone, lambda: S.weather)
+    admin_api.init(S, monitor)
+    S.monitor_task = asyncio.create_task(monitor.run())
+
     log.info("V2 national API ready: %d vertices, %d edges, %d weather cells, mode %s",
              S.graph.graph.vcount(), S.graph.graph.ecount(),
              len(S.weather.cells), S.weather.mode)
     yield
+    if S.monitor_task:
+        S.monitor_task.cancel()
     await S.weather.stop()
 
 
 app = FastAPI(title="Flood Route Risk - V2 National API", version="2.0.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.include_router(accounts.router)
+app.include_router(admin_api.router)
 
 
 def _require_admin(token: str | None) -> None:
@@ -148,7 +161,7 @@ def meta():
 
 
 @app.post("/routes")
-def routes(req: RouteRequest):
+def routes(req: RouteRequest, user: accounts.CurrentUser = Depends(accounts.current_user)):
     t0 = time.perf_counter()
     try:
         result, log_rows = S.planner.plan(
@@ -159,6 +172,7 @@ def routes(req: RouteRequest):
     except PlanningError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    S.routes_served += 1
     result["weather"] = S.weather.status()
     result["compute_ms"] = round((time.perf_counter() - t0) * 1000)
     return result
@@ -210,6 +224,13 @@ def segment(segment_id: int, eta: datetime | None = None):
         }
     finally:
         session.close()
+
+
+@app.get("/alerts/status")
+def alert_status(user=Depends(accounts.current_user)):
+    """Zone rain trigger right now. The app calls this at sign-in to decide whether to alert."""
+    _, trig = S.planner.make_scorer(datetime.now(timezone.utc))
+    return {"trigger": trig}
 
 
 @app.get("/hotspots")

@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>FloodSafe admin</title>
+<style>
+  :root {
+    --ink: #22313F;
+    --muted: #6E7F93;
+    --line: #E0E1F0;
+    --blue: #111563;
+    --blue-soft: #EAEBF5;
+    --orange: #EE5F24;
+    --alert: #B4122B;
+    --ok: #1f9d6b;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; min-height: 100%; color: var(--ink);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #EDEEF6;
+  }
+  body { overflow-x: hidden; overflow-wrap: break-word; }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 16px 16px 0; }
+
+  .head { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 16px; }
+  .head small { display: block; color: var(--muted); font-size: 13px; }
+  .head h1 { font-size: 21px; margin: 2px 0 0; }
+  .iconbtn {
+    width: 42px; height: 42px; border-radius: 50%; border: 0; background: #fff; color: var(--blue);
+    box-shadow: 0 4px 14px rgba(60, 70, 130, .12); display: grid; place-items: center; cursor: pointer;
+  }
+  .iconbtn svg { width: 20px; height: 20px; }
+
+  .card {
+    background: rgba(255, 255, 255, .94); border-radius: 22px; padding: 18px;
+    box-shadow: 0 8px 26px rgba(60, 70, 130, .08); margin-bottom: 14px;
+  }
+  .muted { color: var(--muted); font-size: 13px; }
+  .small { font-size: 12.5px; }
+  .sec { font-size: 15px; font-weight: 700; margin: 22px 4px 10px; }
+
+  /* Hero (like the weather card in the reference) */
+  .hero {
+    background: linear-gradient(135deg, #111563 0%, #2B3190 100%); color: #fff; border: 0;
+  }
+  .hero .muted { color: rgba(255, 255, 255, .82); }
+  .pill {
+    display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .03em;
+    padding: 5px 11px; border-radius: 999px; background: rgba(255, 255, 255, .22); color: #fff;
+  }
+  .hero.on .pill { background: #fff; color: var(--alert); }
+  .big { font-size: 36px; font-weight: 700; line-height: 1.1; margin: 12px 0 4px; font-variant-numeric: tabular-nums; }
+  .bigunit { font-size: 16px; font-weight: 600; opacity: .9; }
+  .stats { display: flex; gap: 10px; margin-top: 16px; }
+  .stat { flex: 1; background: rgba(255, 255, 255, .18); border-radius: 16px; padding: 10px 12px; min-width: 0; }
+  .stat b { display: block; font-size: 16px; }
+  .stat span { font-size: 12px; opacity: .85; }
+  .meter { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, .25); overflow: hidden; margin-top: 14px; }
+  .meter > div { height: 100%; width: 0; background: #fff; border-radius: 999px; transition: width .4s; }
+
+  /* Segmented chips (like Living Room / Bed Room) */
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 12px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto; font: inherit; font-size: 13.5px; font-weight: 600; padding: 8px 15px;
+    border-radius: 999px; border: 0; background: transparent; color: var(--muted); cursor: pointer;
+  }
+  .chip.sel { background: #fff; color: var(--ink); box-shadow: 0 4px 12px rgba(60, 70, 130, .12); }
+
+  /* Device-style tiles */
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tile { background: rgba(255, 255, 255, .94); border-radius: 20px; padding: 14px; box-shadow: 0 8px 22px rgba(60, 70, 130, .07); }
+  .ico {
+    width: 36px; height: 36px; border-radius: 12px; background: var(--blue-soft); color: var(--blue);
+    display: grid; place-items: center; margin-bottom: 10px;
+  }
+  .ico svg { width: 18px; height: 18px; }
+  .tile .label { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+  .tile .num { font-size: 22px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  @media (max-width: 330px) { .tiles { grid-template-columns: 1fr; } }
+
+  /* Rows (alerts, validation) */
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .row:first-child { padding-top: 0; }
+  .row b { font-size: 14.5px; }
+  .row .sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .devs { font-weight: 700; font-size: 17px; text-align: right; white-space: nowrap; }
+  .abar { height: 6px; border-radius: 999px; background: var(--line); margin-top: 8px; position: relative; }
+  .abar > div { height: 100%; border-radius: 999px; background: var(--blue); }
+  .abar > i { position: absolute; top: -3px; width: 2px; height: 12px; background: var(--ink); opacity: .6; }
+
+  /* Levels */
+  .level { display: grid; grid-template-columns: 84px 1fr 54px; gap: 10px; align-items: center; margin: 10px 0; font-size: 14px; }
+  .bar { height: 10px; border-radius: 999px; background: #e8ecf6; overflow: hidden; }
+  .bar > div { height: 100%; border-radius: 999px; }
+  .n { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .lv-low .bar > div { background: #111563; }
+  .lv-moderate .bar > div { background: #D9A400; }
+  .lv-high .bar > div { background: #EE5F24; }
+  .lv-very_high .bar > div { background: #B4122B; }
+
+  /* Validation */
+  .vblock + .vblock { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 14px; }
+  .vtitle { font-weight: 700; margin-bottom: 4px; }
+  .vrow { padding: 7px 0; border-bottom: 1px dashed var(--line); }
+  .vrow:last-child { border-bottom: 0; }
+  .vkey { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .vval { font-size: 14px; }
+  ul.limits { margin: 0; padding-left: 20px; }
+  ul.limits li { margin: 7px 0; font-size: 14px; }
+
+  /* Performance charts */
+  .svgbox { width: 100%; height: auto; display: block; }
+  .legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--muted); margin-top: 8px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 16px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+  .readout { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .ro { background: #F0F0F7; border-radius: 16px; padding: 11px 12px; }
+  .ro b { display: block; font-size: 18px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .ro span { font-size: 12px; color: var(--muted); }
+  .note-box { background: #FBF3D6; color: #6B5200; border-radius: 16px; padding: 12px 14px; font-size: 13px; margin-top: 14px; }
+
+  /* Bottom navigation (like the reference) */
+  .tabs {
+    position: sticky; top: 0; z-index: 5; display: flex; gap: 6px; padding: 6px 0 12px;
+    background: #EDEEF6;
+  }
+  .tabs button {
+    flex: 1; border: 0; background: #fff; border-radius: 14px; padding: 9px 4px; color: var(--muted);
+    cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font: inherit; font-size: 12px; font-weight: 600; box-shadow: 0 4px 12px rgba(60, 70, 130, .08);
+  }
+  .tabs button svg { width: 20px; height: 20px; }
+  .tabs button.sel { color: #fff; background: var(--blue); }
+
+  /* Login */
+  .login input {
+    width: 100%; font: inherit; font-size: 16px; padding: 13px 14px; margin-bottom: 10px;
+    border: 1px solid var(--line); border-radius: 14px; background: #fff; color: var(--ink);
+  }
+  .login button {
+    width: 100%; font: inherit; font-weight: 700; padding: 14px; border: 0; border-radius: 14px;
+    background: var(--blue); color: #fff; cursor: pointer;
+  }
+  .err { color: var(--alert); min-height: 1.3em; font-size: 14px; margin: 10px 0 0; }
+  .hidden { display: none !important; }
+  .section { display: none; }
+  .section.on { display: block; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="head">
+    <div><small>Welcome</small><h1>FloodSafe admin</h1></div>
+    <button class="iconbtn hidden" id="refresh" type="button" aria-label="Refresh">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/></svg>
+    </button>
+  </header>
+
+  <section id="login" class="card login hidden">
+    <h2 style="margin:0 0 12px; font-size:17px">Sign in with an admin account</h2>
+    <input id="email" type="email" placeholder="Admin email" autocomplete="username">
+    <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+    <button id="go" type="button">Sign in</button>
+    <p id="loginerr" class="err"></p>
+  </section>
+
+  <nav class="tabs hidden" id="tabs">
+    <button data-go="overview" class="sel" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>
+      Overview
+    </button>
+    <button data-go="performance" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
+      Performance
+    </button>
+    <button data-go="model" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg>
+      Model
+    </button>
+  </nav>
+  <div id="app" class="hidden">
+    <!-- OVERVIEW -->
+    <section class="section on" data-tab="overview">
+      <div class="card hero" id="hero">
+        <span class="pill" id="trigPill">—</span>
+        <div class="big" id="trigBig">—</div>
+        <div class="bigunit" id="trigUnit">mm in the last 24 h</div>
+        <div class="muted small" id="trigText" style="margin-top:8px"></div>
+        <div class="meter"><div id="meterBar"></div></div>
+        <div class="stats">
+          <div class="stat"><span>Alert threshold</span><b id="thrVal">—</b></div>
+          <div class="stat"><span>Weather source</span><b id="wxVal">—</b></div>
+        </div>
+      </div>
+
+      <div class="tiles">
+        <div class="tile"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6"/><path d="M17 11a3 3 0 1 0 0-6"/></svg></div><div class="label">Users</div><div class="num" id="users">—</div></div>
+        <div class="tile"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></div><div class="label">Devices for alerts</div><div class="num" id="devices">—</div></div>
+        <div class="tile"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg></div><div class="label">Routes since start</div><div class="num" id="routes">—</div></div>
+        <div class="tile"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 15l4-4 3 3 5-6"/></svg></div><div class="label">Road segments</div><div class="num" id="segments">—</div></div>
+      </div>
+      <p class="muted small" id="updated" style="margin:10px 4px 0"></p>
+
+      <h2 class="sec">Recent alerts</h2>
+      <div class="card" id="alerts"></div>
+    </section>
+
+    <!-- PERFORMANCE -->
+    <section class="section" data-tab="performance">
+      <h2 class="sec" style="margin-top:4px">Threshold</h2>
+      <div class="chips" id="thrChips"></div>
+      <div class="card">
+        <div class="readout" id="readout"></div>
+        <p class="note-box" id="tradeoff"></p>
+      </div>
+
+      <h2 class="sec">Floods caught vs threshold</h2>
+      <div class="card">
+        <div id="recallChart"></div>
+        <div class="legend">
+          <span><i style="background:#111563"></i>Tunisian gauges</span>
+          <span><i style="background:#EE5F24"></i>IMERG satellite</span>
+        </div>
+        <p class="muted small" style="margin:10px 0 0">Complete flood spells caught. Shaded band: 95 % interval (few events, so wide).</p>
+      </div>
+
+      <h2 class="sec">False alarms vs threshold</h2>
+      <div class="card">
+        <div id="falseChart"></div>
+        <div class="legend">
+          <span><i style="background:#111563"></i>Tunisian gauges</span>
+          <span><i style="background:#EE5F24"></i>IMERG satellite</span>
+        </div>
+        <p class="muted small" style="margin:10px 0 0">Triggers per zone per year where no flood was listed.</p>
+      </div>
+
+      <h2 class="sec">Mediterranean fit data (44 mm)</h2>
+      <div class="card" id="medCard"></div>
+      <p class="muted small" style="margin:0 4px">Accuracy on live operation is not measured yet: there are no confirmed flood labels to compare against.</p>
+    </section>
+
+    <!-- MODEL -->
+    <section class="section" data-tab="model">
+      <h2 class="sec" style="margin-top:4px">Risk levels in the pilot zone</h2>
+      <div class="card" id="levels"></div>
+
+      <h2 class="sec">Published validation</h2>
+      <div class="card" id="validation"></div>
+
+      <h2 class="sec">Limits</h2>
+      <div class="card"><ul class="limits" id="limits"></ul></div>
+    </section>
+  </div>
+</main>
+
+
+<script>
+const KEY = "floodsafe-admin-token";
+const $ = (id) => document.getElementById(id);
+let token = "";
+try { token = localStorage.getItem(KEY) || ""; } catch (e) { token = ""; }
+let M = null;
+let thr = 44;
+let timer = null;
+
+const label = (k) => String(k).replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+const fmtNum = (n) => (n == null ? "—" : Number(n).toLocaleString());
+const pct = (x) => Math.round(x * 100) + " %";
+const fmtTime = (iso) => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return isNaN(d) ? iso : d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+};
+function describe(v) {
+  if (v === null || v === undefined) return "—";
+  if (Array.isArray(v)) return v.map(describe).join(", ");
+  if (typeof v === "object") return Object.entries(v).map(([k, x]) => `${label(k)}: ${describe(x)}`).join(" · ");
+  return String(v);
+}
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+async function api(path, opts = {}) {
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = "Bearer " + token;
+  const res = await fetch(path, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(typeof body.detail === "string" ? body.detail : "Error " + res.status);
+    err.status = res.status;
+    throw err;
+  }
+  return body;
+}
+
+async function signIn() {
+  $("loginerr").textContent = "";
+  try {
+    const r = await api("/auth/login", { method: "POST", body: JSON.stringify({ email: $("email").value.trim(), password: $("password").value }) });
+    if (r.user.role !== "admin") { $("loginerr").textContent = "This account is not an admin."; return; }
+    token = r.token;
+    try { localStorage.setItem(KEY, token); } catch (e) {}
+    await load();
+  } catch (e) { $("loginerr").textContent = e.message; }
+}
+
+function showLogin(message) {
+  token = "";
+  try { localStorage.removeItem(KEY); } catch (e) {}
+  $("app").classList.add("hidden");
+  $("tabs").classList.add("hidden");
+  $("refresh").classList.add("hidden");
+  $("login").classList.remove("hidden");
+  $("loginerr").textContent = message || "";
+  if (timer) { clearInterval(timer); timer = null; }
+}
+
+function go(tab) {
+  document.querySelectorAll(".section").forEach((s) => s.classList.toggle("on", s.dataset.tab === tab));
+  document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("sel", b.dataset.go === tab));
+  window.scrollTo({ top: 0 });
+}
+
+/* ---------- Overview ---------- */
+function renderOverview(m) {
+  const t = m.live.trigger;
+  const hero = $("hero");
+  hero.classList.toggle("on", !!(t && t.status === "on"));
+  if (!t) {
+    $("trigPill").textContent = "NO DATA";
+    $("trigBig").textContent = "—";
+    $("trigUnit").textContent = "zone model not loaded";
+    $("trigText").textContent = "";
+    $("meterBar").style.width = "0%";
+  } else {
+    const on = t.status === "on";
+    $("trigPill").textContent = on ? "ALERT ON" : "NO ALERT";
+    $("trigBig").textContent = t.max_rain_24h_mm == null ? "—" : Number(t.max_rain_24h_mm).toFixed(1);
+    $("trigUnit").textContent = "mm in the last 24 h (zone peak)";
+    $("trigText").textContent = on
+      ? "Heavy rain in the zone: users are told to check the map for drowned roads."
+      : "Below the alert threshold. The zone is not under a rain alert.";
+    const p = t.max_rain_24h_mm == null ? 0 : Math.min(100, (t.max_rain_24h_mm / t.threshold_mm) * 100);
+    $("meterBar").style.width = p.toFixed(0) + "%";
+  }
+  $("thrVal").textContent = m.model.trigger_threshold_mm != null ? m.model.trigger_threshold_mm + " mm" : "—";
+  $("wxVal").textContent = m.live.weather ? String(m.live.weather.mode || "—").replace(/^scenario:/, "") : "—";
+  $("users").textContent = fmtNum(m.live.users);
+  $("devices").textContent = fmtNum(m.live.devices_for_alerts);
+  $("routes").textContent = fmtNum(m.live.routes_served_since_start);
+  $("segments").textContent = fmtNum(m.model.zone_segments);
+  $("updated").textContent = "Updated " + new Date().toLocaleTimeString() +
+    (m.live.monitor_last_checked ? " · last alert check " + fmtTime(m.live.monitor_last_checked) : "");
+
+  const box = $("alerts"); box.replaceChildren();
+  if (!m.alerts.length) { box.appendChild(el("p", "muted", "No alerts yet.")); return; }
+  const scale = Math.max(80, ...m.alerts.map((a) => a.max_rain_24h_mm || 0));
+  m.alerts.forEach((a) => {
+    const row = el("div", "row");
+    const left = el("div", "");
+    left.style.flex = "1";
+    left.appendChild(el("b", "", fmtTime(a.started_at)));
+    left.appendChild(el("div", "sub", `${a.max_rain_24h_mm} mm rain · threshold ${a.threshold_mm} mm`));
+    const track = el("div", "abar");
+    const fill = el("div"); fill.style.width = (Math.min(100, (a.max_rain_24h_mm / scale) * 100)).toFixed(1) + "%";
+    track.appendChild(fill);
+    const tick = el("i"); tick.style.left = (Math.min(100, (a.threshold_mm / scale) * 100)).toFixed(1) + "%";
+    track.appendChild(tick);
+    left.appendChild(track);
+    row.appendChild(left);
+    row.appendChild(el("div", "devs", String(a.devices_notified)));
+    box.appendChild(row);
+  });
+}
+
+/* ---------- Performance ---------- */
+function lineChart(id, cfg) {
+  const W = 320, H = 200, L = 40, R = 12, T = 14, B = 26;
+  const xs = cfg.xs;
+  const xmin = Math.min(...xs), xmax = Math.max(...xs);
+  const X = (v) => L + ((v - xmin) / (xmax - xmin)) * (W - L - R);
+  const Y = (v) => T + (1 - v / cfg.yMax) * (H - T - B);
+  let s = `<svg viewBox="0 0 ${W} ${H}" class="svgbox" role="img" aria-label="${cfg.title}">`;
+  cfg.yTicks.forEach((t) => {
+    s += `<line x1="${L}" x2="${W - R}" y1="${Y(t)}" y2="${Y(t)}" stroke="#e4e8f4"/>`;
+    s += `<text x="${L - 6}" y="${Y(t) + 4}" font-size="10" text-anchor="end" fill="#6b7390">${cfg.yFmt(t)}</text>`;
+  });
+  xs.forEach((v) => { s += `<text x="${X(v)}" y="${H - 7}" font-size="10" text-anchor="middle" fill="#6b7390">${v}</text>`; });
+  cfg.series.forEach((se) => {
+    if (se.lo && se.hi) {
+      const top = se.hi.map((y, i) => `${X(xs[i])},${Y(y)}`);
+      const bot = se.lo.map((y, i) => `${X(xs[i])},${Y(y)}`).reverse();
+      s += `<polygon points="${[...top, ...bot].join(" ")}" fill="${se.color}" opacity=".14"/>`;
+    }
+    const pts = se.ys.map((y, i) => `${X(xs[i])},${Y(y)}`).join(" ");
+    s += `<polyline points="${pts}" fill="none" stroke="${se.color}" stroke-width="2.5" stroke-linejoin="round"${se.dash ? ' stroke-dasharray="6 4"' : ""}/>`;
+    se.ys.forEach((y, i) => { s += `<circle cx="${X(xs[i])}" cy="${Y(y)}" r="3.3" fill="#fff" stroke="${se.color}" stroke-width="2"/>`; });
+  });
+  if (cfg.marker != null) {
+    s += `<line x1="${X(cfg.marker)}" x2="${X(cfg.marker)}" y1="${T}" y2="${H - B}" stroke="#22313F" stroke-dasharray="3 3" opacity=".5"/>`;
+    s += `<text x="${X(cfg.marker)}" y="${T + 9}" font-size="10" font-weight="700" text-anchor="middle" fill="#22313F">${cfg.marker} mm</text>`;
+  }
+  s += "</svg>";
+  $(id).innerHTML = s;
+}
+
+function renderPerformance(ev) {
+  const g = ev.tunisian_gauges_inm, im = ev.tunisian_imerg;
+  const chips = $("thrChips"); chips.replaceChildren();
+  g.thresholds.forEach((v) => {
+    const b = el("button", "chip" + (v === thr ? " sel" : ""), v + " mm");
+    b.type = "button";
+    b.addEventListener("click", () => { thr = v; renderPerformance(ev); });
+    chips.appendChild(b);
+  });
+  const i = g.thresholds.indexOf(thr);
+  const ro = $("readout"); ro.replaceChildren();
+  const box = (k, v, sub) => { const d = el("div", "ro"); d.appendChild(el("span", "", k)); d.appendChild(el("b", "", v)); if (sub) d.appendChild(el("span", "", sub)); return d; };
+  if (i >= 0) {
+    ro.appendChild(box("Gauges: complete spells caught", g.complete_flood_spells_caught[i], pct(g.recall_complete[i]) + " (" + pct(g.recall_complete_low[i]) + " to " + pct(g.recall_complete_high[i]) + ")"));
+    ro.appendChild(box("IMERG: complete spells caught", im.complete_flood_spells_caught[i], pct(im.recall_complete[i]) + " (" + pct(im.recall_complete_low[i]) + " to " + pct(im.recall_complete_high[i]) + ")"));
+    ro.appendChild(box("Gauges: false alarms / zone / yr", g.false_triggers_per_zone_year[i].toFixed(2), "95 %: " + g.false_low[i].toFixed(2) + " to " + g.false_high[i].toFixed(2)));
+    ro.appendChild(box("IMERG: false alarms / zone / yr", im.false_triggers_per_zone_year[i].toFixed(2), "95 %: " + im.false_low[i].toFixed(2) + " to " + im.false_high[i].toFixed(2)));
+  }
+  $("tradeoff").textContent = `Raising the threshold cuts false alarms but misses more floods. ${ev.operational_threshold_mm} mm is the value chosen on the Mediterranean data; the Tunisian gauge and IMERG numbers above are exploratory and the threshold has not been refitted for them.`;
+
+  lineChart("recallChart", {
+    title: "Complete flood spells caught", xs: g.thresholds, yMax: 1, yTicks: [0, 0.25, 0.5, 0.75, 1],
+    yFmt: (v) => Math.round(v * 100) + "%", marker: thr,
+    series: [
+      { ys: g.recall_complete, lo: g.recall_complete_low, hi: g.recall_complete_high, color: "#111563" },
+      { ys: im.recall_complete, lo: im.recall_complete_low, hi: im.recall_complete_high, color: "#EE5F24", dash: true },
+    ],
+  });
+  const fmax = Math.max(...g.false_high, ...im.false_high);
+  const fy = Math.ceil(fmax * 2) / 2;
+  const ticks = []; for (let t = 0; t <= fy + 1e-9; t += 0.5) ticks.push(Number(t.toFixed(1)));
+  lineChart("falseChart", {
+    title: "False alarms per zone per year", xs: g.thresholds, yMax: fy, yTicks: ticks,
+    yFmt: (v) => v.toFixed(1), marker: thr,
+    series: [
+      { ys: g.false_triggers_per_zone_year, lo: g.false_low, hi: g.false_high, color: "#111563" },
+      { ys: im.false_triggers_per_zone_year, lo: im.false_low, hi: im.false_high, color: "#EE5F24", dash: true },
+    ],
+  });
+
+  const med = ev.mediterranean_leave_one_event_out;
+  const mc = $("medCard"); mc.replaceChildren();
+  const row = (a, b, sub) => { const r = el("div", "row"); const l = el("div", ""); l.appendChild(el("b", "", a)); if (sub) l.appendChild(el("div", "sub", sub)); r.appendChild(l); r.appendChild(el("div", "devs", b)); return r; };
+  mc.appendChild(row("Flood zones caught", `${med.flood_zones_caught}/${med.flood_zones}`, `${pct(med.flood_zones_caught / med.flood_zones)} · ${med.events} events, leave-one-event-out`));
+  mc.appendChild(row("Dry spells triggered", `${med.dry_spells_triggered}/${med.dry_spells}`, `${pct(med.dry_spells_triggered / med.dry_spells)} of wet spells without a flood`));
+  mc.appendChild(el("p", "muted small", med.note));
+}
+
+/* ---------- Model ---------- */
+function renderModel(m) {
+  const counts = m.model.level_counts || {};
+  const box = $("levels"); box.replaceChildren();
+  const order = [["low", "Low"], ["moderate", "Moderate"], ["high", "High"], ["very_high", "Very high"]];
+  const max = Math.max(1, ...order.map(([k]) => counts[k] || 0));
+  order.forEach(([key, name]) => {
+    const n = counts[key] || 0;
+    const r = el("div", "level lv-" + key);
+    r.appendChild(el("div", "", name));
+    const bar = el("div", "bar"); const f = el("div"); f.style.width = ((n / max) * 100).toFixed(1) + "%";
+    bar.appendChild(f); r.appendChild(bar);
+    r.appendChild(el("div", "n", fmtNum(n)));
+    box.appendChild(r);
+  });
+
+  const va = $("validation"); va.replaceChildren();
+  const entries = Object.entries(m.model.validation || {});
+  if (!entries.length) va.appendChild(el("p", "muted", "No validation results published."));
+  entries.forEach(([name, value]) => {
+    const block = el("div", "vblock");
+    block.appendChild(el("div", "vtitle", label(name)));
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      Object.entries(value).forEach(([k, x]) => {
+        const r = el("div", "vrow");
+        r.appendChild(el("div", "vkey", label(k)));
+        r.appendChild(el("div", "vval", describe(x)));
+        block.appendChild(r);
+      });
+    } else {
+      block.appendChild(el("div", "vval", describe(value)));
+    }
+    va.appendChild(block);
+  });
+
+  const li = $("limits"); li.replaceChildren();
+  (m.model.limits || []).forEach((x) => li.appendChild(el("li", "", describe(x))));
+}
+
+/* ---------- Load ---------- */
+async function load() {
+  try {
+    M = await api("/admin/metrics");
+    $("login").classList.add("hidden");
+    $("app").classList.remove("hidden");
+    $("tabs").classList.remove("hidden");
+    $("refresh").classList.remove("hidden");
+    renderOverview(M);
+    renderModel(M);
+    if (M.evaluation) renderPerformance(M.evaluation);
+    if (!timer) timer = setInterval(load, 60000);
+  } catch (e) {
+    if (e.status === 401 || e.status === 403) showLogin(e.status === 403 ? "This account is not an admin." : "Please sign in again.");
+    else $("loginerr").textContent = e.message;
+  }
+}
+
+$("go").addEventListener("click", signIn);
+$("password").addEventListener("keydown", (e) => { if (e.key === "Enter") signIn(); });
+$("refresh").addEventListener("click", load);
+document.querySelectorAll("#tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.go)));
+if (token) load();
+else $("login").classList.remove("hidden");
+</script>
+</body>
+</html>
